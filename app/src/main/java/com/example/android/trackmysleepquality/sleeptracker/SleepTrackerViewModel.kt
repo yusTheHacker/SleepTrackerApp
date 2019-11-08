@@ -18,9 +18,12 @@ package com.example.android.trackmysleepquality.sleeptracker
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.Transformations
 import com.example.android.trackmysleepquality.database.SleepDatabaseDao
 import com.example.android.trackmysleepquality.database.SleepNight
+import com.example.android.trackmysleepquality.formatNights
 import kotlinx.coroutines.*
 
 /**
@@ -43,6 +46,21 @@ class SleepTrackerViewModel(
 
     private var nights = database.getAllNights()
 
+    val nightsString = Transformations.map(nights) {nights ->
+
+        formatNights(nights, application.resources)
+
+    }
+
+    private val _navigateToSleepQuality = MutableLiveData<SleepNight>()
+
+    val navigateToSleepQuality: LiveData<SleepNight>
+            get() = _navigateToSleepQuality
+
+    fun doneNavigation() {
+        _navigateToSleepQuality.value = null
+    }
+
     init {
         initializeTonight()
     }
@@ -55,12 +73,12 @@ class SleepTrackerViewModel(
 
     private suspend fun getTonightFromDatabase(): SleepNight? {
 
+
         return withContext(Dispatchers.IO) {
 
             var night = database.getTonight()
-
             if (night?.endTimeMilli != night?.startTimeMilli) {
-                night = null
+               night = null
             }
 
             night
@@ -87,6 +105,7 @@ class SleepTrackerViewModel(
             val oldNight = tonight.value ?: return@launch
             oldNight.endTimeMilli = System.currentTimeMillis()
             update(oldNight)
+            _navigateToSleepQuality.value = oldNight
         }
     }
 
@@ -103,7 +122,7 @@ class SleepTrackerViewModel(
         }
     }
 
-    suspend fun clear() {
+    private suspend fun clear() {
         withContext(Dispatchers.IO) {
             database.clear()
         }
